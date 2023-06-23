@@ -1,0 +1,27 @@
+#!/bin/bash
+# Deploy Leon Paternoster's static site on eklausmeier.goip.de
+# Elmar Klausmeier, 17-Jun-2023
+
+SAAZEROOT=/home/klm/php/saaze-paternoster
+DOCROOT=/srv/http
+BUILD=/tmp/build
+
+cd $DOCROOT
+rm -rf paternoster
+mv $BUILD paternoster
+cd paternoster
+ln -s $SAAZEROOT/public/paternoster.css
+ln -s $SAAZEROOT/public/img
+ln -s $SAAZEROOT/public/index.html
+mkdir feed
+mv feed.xml feed/index.xml
+
+# Construct search.php from templates and raw search.php, copy to $DOCROOT/paternoster
+cat	<(echo "<?php \$title=\"Search\"; \$url=\"/paternoster/aux/search.php\"; \$rbase='/paternoster'; \$cdirs=\"paternoster\"; ?>")	\
+	<( perl -ne 'if (/\s+require SAAZE_PATH . "([\.\w\/]+)"/) { open(F,"<'"$SAAZEROOT"'$1");print <F>; } else { print; }' $SAAZEROOT/templates/top-layout.php )	\
+	$SAAZEROOT/content/aux/search.php	\
+	$SAAZEROOT/templates/bottom-layout.php	\
+	> $DOCROOT/paternoster/aux/search.php
+
+
+

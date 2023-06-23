@@ -1,0 +1,22 @@
+#!/bin/bash
+# Run Perl script blogleonp on all Markdown files in directory $1 and write to directory $2
+# Only relevant for _posts + _notes, not relevant for _links
+# Elmar Klausmeier, 12-Jun-2023
+
+[ -z "$1" ] && exit 1
+[ -z "$2" ] && exit 2
+echo "Source=$1, target=$2"
+
+cd "$1"
+for i in *.markdown *.md *.mkd; do
+	fn=${i// /-}
+	fn=${fn%%.mkd}
+	fn=${fn%%.markdown}
+	fn=${fn%%.md}
+	[[ $fn =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}- ]] && fn=${fn:11}
+	[ -f "$2/$fn.md" ] && echo "duplicate: $i" && fn=${fn}2
+	fn=${fn}.md
+	echo "i=$i, fn=$fn"
+	blogleonp "$i" > "$2/$fn"
+done
+

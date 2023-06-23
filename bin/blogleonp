@@ -1,0 +1,100 @@
+#!/bin/perl -W
+# Convert Jekyll files from Leon Paternoster to Simplified Saaze Markdown files
+# Elmar Klausmeier, 12-Jun-2023
+
+use strict;
+my ($inFrontmatter,$dateGiven,$stack,$stackInit) = (0,0,"",0);
+
+while (<>) {
+	chomp;
+	s/\s+$//;	# rtrim
+
+	if (/^\-\-\-/) {
+		if ($inFrontmatter && $dateGiven == 0) {	# this is now the 2nd '---' and no date so far
+			my $dateSubst = substr($ARGV,0,10);
+			$dateSubst = "2020-01-01" if ($dateSubst !~ /\d{4}-\d{2}-\d{2}/);
+			print 'date: "' . $dateSubst . " 12:00:00\"\n";	# fetch date from filename, format 'yyyy-mm-dd-'
+			$dateGiven = 1;	# used date from filename
+		}
+		if (++$inFrontmatter == 1) {
+			print "$_\n";
+			next;
+		}	# 2nd '---' must work on $stack
+	}
+	if ($inFrontmatter) {
+		if (length($stack) <= 0 && length($_) <= 0) {	# drop consequtive empty lines in frontmatter
+			$stackInit = 0;
+			next;
+		} elsif ($stackInit == 0) {	#length($stack) == 0) {
+			($stack,$stackInit) = ($_,1);
+			next;	# read ahead
+		} elsif (/^  /) {	# continuation starts with 2 spaces
+			$stack .= $_;
+			next;
+		} else {
+			($stack,$_) = ($_,$stack);
+		}
+		if (length($_) <= 0) {	# drop empty lines in frontmatter
+			next if ($inFrontmatter == 1);
+			goto L1;
+		}
+		#printf("inFM=%d, stack:|%s|, _=|%s|\n",$inFrontmatter,substr($stack,0,40),substr($_,0,40));
+
+		s/<abbr title="Do not Repeat Yourself">/<abbr title='Do not Repeat Yourself'>/;	# special hack
+
+		next if (/(in_reply_to|mb-cat|tags):\s+''/);	# drop empty tags
+		next if (/tags:\s+\[\]/);
+		s/Title: /title: /;	# correct typo
+		s/twitter-note: >-/twitter-note: /;	# get rid of annoying '>-'
+		s/date: 2023-04-16 2023-04-16/date: 2023-04-16/;	# remove dfuplicate
+		s/hide_from_social_media: "true"/hide_from_social_media: true/;	# convert from string to boolean
+		s/tag: indieweb/tags: indieweb/;	# correct mispelling
+	
+		if (/^(alt|date|description|excerpt|img|in_reply_to|layout|link-author|link-published|link-url|mb-cat|slug|title|twitter-note):\s+(.+)$/) {
+			my ($key,$val) = ($1,$2);
+			$val = '"' . substr($val,1,-1) . '"' if ($val =~ /^'[^']+'/);	# drop single quotes at start+end
+			if ($key eq "date") {
+				$dateGiven = 1;
+				$val =~ s/ \+0000//;	# drop GMT offset, just spoils later sorting
+			}
+			$_ = $key . ": " . $val;
+		}
+		# Encapsulate in quotation marks
+		s/^(alt|date|description|excerpt|img|in_reply_to|layout|link-author|link-published|link-url|mb-cat|slug|title|twitter-note):\s+([^"]+)/$1: "$2"/;
+		s/^excerpt:/fmexcerpt:/;	# 'excerpt' is already used in Saaze, rename it to 'fmexcerpt'
+		s/^published:\s+true/draft: false/;	# 'published' is our 'draft', but just negated
+		s/^published:\s+false/draft: true/;
+		s/^category: (.+)$/categories: \["$1"\]/;	# Saaze allows multiple categories
+		if (/tags:\s+(.+)$/) {
+			my @tags = map('"'.$_.'"',split(/\s+/,$1));
+			$_ =  "tags: [" . join(", ",@tags) . "]";
+		}
+	}
+
+	# Code sections
+	s/{% highlight (\w+) %}/```$1/;
+	s/{% endhighlight %}/```/;
+
+	s/https:\/\/www\.thisdaysportion\.com\/(posts|links|notes)/..\/..\/$1/g;	# map to local webserver
+	s/\]\(\/(posts|links|notes)\//](\/paternoster\/$1\//g;	# map to /paternoster/posts
+
+	# figures
+	s/"wp-post\.png"/"wp-post.webp"/;	# correct filetype
+	s/{% include figure.html(|["=\-\s\w]+) url="([^"]+)" alt="([^"]+)" caption="([^"]+)"(|["=\s\w]+) %}/!\[$3\](https:\/\/thisdaysportion.com\/images\/$2 "$3")\n<figcaption>$4<\/figcaption>/g;
+	s/{% include figure-2.html(| pull="[^"]+") url-1="([^"]+)" alt-1="([^"]+)" height-1="(\d+)" width-1="(\d+)" url-2="([^"]+)" alt-2="([^"]+)" height-2="(\d+)" width-2="(\d+)" caption="([^"]+)" %}/!\[$3\](https:\/\/thisdaysportion.com\/images\/$2 "$3")\n\n!\[$7\](https:\/\/thisdaysportion.com\/images\/$6 "$7")\n<figcaption>$10<\/figcaption>/g;
+
+	# mp4 videos
+	s/{% include video.html link-out="true" id="([\-\w]+)" title="[^"]+" %}/\[youtube\] $1 \[\/youtube\]/g;
+	s/{% include native-video\.html file="([^"]+)" filetype="mp4" height="(\d+)" width="(\d+)" title="[^"]+" description="[^"]+" %}/<video height="$2" width="$3" controls>\n\t<source src="$1" type="video\/mp4">\n<\/video>\n/g;
+	s/{% include native-video\.html cover="[^"]+" title="[^"]+" width="(\d+)" height="(\d+)" file="([^"]+)" filetype="mp4" description="[^"]+" %}/<video width="$1" height="$2" controls>\n\t<source src="$3" type="video\/mp4"\n<\/video>\n/g;
+	s/{% include native-video\.html title="[^"]+" cover="[^"]+" width="(\d+)" height="(\d+)" file="([^"]+)" filetype="mp4" description="[^"]+" %}/<video width="$1" height="$2" controls>\n\t<source src="$3" type="video\/mp4"\n<\/video>\n/g;
+
+	print "$_\n";
+
+L1:	if ($inFrontmatter >= 2) {
+		$inFrontmatter = 0;
+		print "---\n\n";
+	}
+}
+
+

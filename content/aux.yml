@@ -1,0 +1,5 @@
+title: This day’s portion, personal blog of Leon Paternoster
+sort_field: title
+sort_direction: asc
+index_route: /aux
+entry_route: /{slug}

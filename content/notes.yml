@@ -1,0 +1,8 @@
+title: This day’s portion, short notes from Leon Paternoster
+sort_field: date
+sort_direction: desc
+index_route: /notes
+entry_route: /notes/{slug}
+entries_per_page: 50
+excerpt_length: 120
+rss: true
