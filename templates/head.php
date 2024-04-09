@@ -5,7 +5,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-	<link rel="canonical" href="https://eklausmeier.goip.de<?=$url??''?>">
+	<link rel="canonical" href="https://eklausmeier.goip.de/paternoster<?=$url??''?>">
 	<link rel="alternate" type="application/rss+xml" title="RSS: This day’s portion – all posts" href="https://eklausmeier.goip.de/paternoster/index.xml">
 	<meta name="description" content="A blog about the web (especially what’s known as the “indieweb”), politics and books.">
 	<meta name="keywords" content="websites, SSG, The Fall, Krautrock, Jekyll">
